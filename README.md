@@ -28,3 +28,7 @@ Output products: list of pixels above imposed flux limit, extracted source catal
 Depends on the following files:
 * Extracted source catalog with positions and fluxes
 * SCCAT data table
+
+Output products: list of input and output fluxes for the single matches and multiple matches, list of output fluxes for the no match sources, summary of completeness results for the run
+
+The output products from this step are what is fed into the data analysis with the completeness and flux boosting plots.
