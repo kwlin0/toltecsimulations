@@ -24,15 +24,7 @@ from scipy.ndimage import shift
 from astropy.io import fits
 import FITS_tools
 from scipy.stats import norm
-"""
-# INPUTS
-path_to_inputFlux = '/Users/klin/Documents/Astro/Spring 2019/newSCCATfluxes.txt'# path to input flux file [str]
-path_to_PSF = 'AzTEC_psf.fits'                                                  # path to desired PSF FITS file [str]
-band = 1.1                                                                      # mm [float]
-FWHM = 5                                                                        # arcsec [int/float] (9.5 arcsec for 2.0 mm, 6.3 arcsec for 1.4 mm, 5 arcsec for 1.1 mm)
-fieldSize = 2.0                                                                 # square degrees [float]
-shift_xy = [0.5, 0.5]                                                           # px in (x,y) [array], 1.1 mm [0.5, 0.5], 1.3 mm [0.5, 0.], 2.0 mm [0., 0.5]
-"""
+
 
 def makeField(area, res):
     # area = square degrees of desired field
@@ -99,8 +91,8 @@ def makeSignalMap(path_to_inputFlux, path_to_PSF, band, FWHM, fieldSize, shift_x
     toltecPSF.writeto('toltec_'+str(int(band*1000))+'_PSF.fits')
     
     signalImage = fits.PrimaryHDU(dg_aztec_scaled)
-    signalImage.writeto('toltec_'+str(int(band*1000))+'nonoise_'+str(int(fieldSize))+'sd.fits')
-    np.savetxt('toltec_'+str(int(band*1000))+'nonoise_'+str(int(fieldSize))+'sd.txt', dg_aztec_scaled.flatten()) # saves fluxes as txt file
+    signalImage.writeto('toltec_'+str(int(band*1000))+'nonoise_'+str(int(fieldSize))+'sd_s.fits')
+    np.savetxt('toltec_'+str(int(band*1000))+'nonoise_'+str(int(fieldSize))+'sd_s.txt', dg_aztec_scaled.flatten()) # saves fluxes as txt file
     
     return signalArray, shiftedImage, dg_aztec_scaled
 
@@ -147,19 +139,46 @@ def makeNoiseMap(path_to_inputFlux, path_to_PSF, band, FWHM, fieldSize, sigma, f
     
     # Save files as FITS and text
     hdu = fits.PrimaryHDU(dg_blankField)
-    hdu.writeto('toltec_'+str(int(band*1000))+'_'+str(sigma)+'_'+str(int(fieldSize))+'_sd_n.fits')
-    np.savetxt('toltec_'+str(int(band*1000))+'_'+str(sigma)+'_'+str(int(fieldSize))+'_sd_n.txt', dg_blankField.flatten()) # saves fluxes as txt file
+    hdu.writeto('toltec_'+str(int(band*1000))+'_rms'+str(sigma).replace('.', 'p')+'_'+str(int(fieldSize))+'sd_n.fits')
+    np.savetxt('toltec_'+str(int(band*1000))+'_rms'+str(sigma).replace('.', 'p')+'_'+str(int(fieldSize))+'sd_n.txt', dg_blankField.flatten()) # saves fluxes as txt file
     
     return blankField_noise, aztecPSF_resized, dg_blankField
 
+def makeSignalNoiseMap(SignalMap, NoiseMap, path_to_destination):
+
+    finalMap = SignalMap + NoiseMap
+    finalMap_FITS = fits.PrimaryHDU(finalMap)
+    finalMap_FITS.writeto(path_to_destination+'.fits')
+    np.savetxt(path_to_destination+'.txt', finalMap.flatten())
+    
+    return finalMap
+
 #####################################################################
 
-sigarray, simage, dg = makeSignalMap('newSCCATfluxes.txt', 'AzTEC_psf.fits', 1.1, 5, 2.0, [0.5, 0.5])
+# PROGRAM INPUTS
 
-rawNoise, psf, noiseMap = makeNoiseMap('newSCCATfluxes.txt', 'AzTEC_psf.fits', 1.1, 5, 2.0, 0.025, 1.19)
+"""
+path_to_inputFlux = '/Users/klin/Documents/Astro/Spring 2019/newSCCATfluxes.txt'# path to input flux file [str]
+path_to_PSF = 'AzTEC_psf.fits'                                                  # path to desired PSF FITS file [str]
+band = 1.1                                                                      # mm [float]
+FWHM = 5                                                                        # arcsec [int/float] (9.5 arcsec for 2.0 mm, 6.3 arcsec for 1.4 mm, 5 arcsec for 1.1 mm)
+fieldSize = 2.0                                                                 # square degrees [float]
+shift_xy = [0.5, 0.5]                                                           # px in (x,y) [array], 1.1 mm [0.5, 0.5], 1.3 mm [0.5, 0.], 2.0 mm [0., 0.5]
+"""
+
+band = 1.1
+FWHM = 5
+sigma = 0.025
+fieldSize = 2.0
+shift_xy = [0.5, 0.5]
+factor = 1.19
+
+sigarray, shiftedpsf, dg = makeSignalMap('newSCCATfluxes.txt', 'AzTEC_psf.fits', band, FWHM, fieldSize, shift_xy)
+rawNoise, psf, noiseMap = makeNoiseMap('newSCCATfluxes.txt', 'AzTEC_psf.fits', band, FWHM, fieldSize, sigma, factor)
+final = makeSignalNoiseMap(dg, noiseMap, 'toltec_'+str(int(band*1000))+'_rms'+str(sigma).replace('.', 'p')+'_'+str(int(fieldSize))+'sd') # do not include file extension in pathname
 
 
-
+#####################################################################
 # REPLOT FIELD (NOT USING NOISE NOW Feb 2020 update)
 
 plt.figure(1)
@@ -168,15 +187,12 @@ fig, ax=plt.subplots(1,3,figsize=(12,4))
 sky = ax[0].imshow(sigarray,cmap='viridis',origin='lower')
 ax[0].text(70,200,'Sky',color='r',fontsize=15)
 
-filt = ax[1].imshow(simage,cmap='viridis',origin='lower')
+filt = ax[1].imshow(shiftedpsf,cmap='viridis',origin='lower')
 ax[1].text(10,10,'PSF',color='r',fontsize=15)
 
 
 result = ax[2].imshow(dg,cmap='viridis',origin='lower')
 ax[2].text(60,190,'sp.fftconvolve',color='r',fontsize=15)
-#divider = make_axes_locatable(ax[2])
-#cax = divider.append_axes("right", size="3%", pad=0.1)
-#plt.colorbar(result, cax=cax)
 plt.tight_layout()
 plt.show()
 
@@ -202,7 +218,7 @@ mu, std = norm.fit(noiseMap.flatten())
 
 # Plot the histogram.
 plt.hist(noiseMap.flatten(), bins=900, density=True, alpha=0.6, color='g', histtype='step', label='Data')
-#plt.hist(dg_blankField.flatten(), bins=900, alpha=0.6, color='g', histtype='step', normed=0)
+
 
 # Plot the PDF.
 xmin, xmax = plt.xlim()
@@ -217,8 +233,3 @@ plt.legend()
 plt.tight_layout()
 #plt.savefig("NoiseMapDist_"+"FWHM"+str(detectorFWHM)+"_"+str(sigma)+".pdf")
 plt.show()
-
-
-
-
-
