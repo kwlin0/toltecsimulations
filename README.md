@@ -6,6 +6,9 @@ There are three main parts to the program:
 * Source extraction (based on chosen flux limit)
 * Catalog matching (based on chosen search radius)
 
+## System Requirements
+The codes have been tested and verified for MacOS Catalina running Python 3.6.8. Packages used were numpy v1.16.2, scipy v1.2.1, matplotlib v3.0.3, astropy v3.1.2, FITS_tools v0.2.
+
 ## Creating Maps
 
 Depends on the following files:
